@@ -1,8 +1,7 @@
-# author: raja5
-# Ames Housing Prediction using Random Forest (Manual Implementation)
-
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.ensemble import RandomForestRegressor
@@ -12,7 +11,7 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error
 class AmesHousingPrediction:
     """
     A class to encapsulate the process of predicting Ames Housing prices 
-    without using scikit-learn's Pipeline.
+    with a preliminary implementation for Milestone 2.
     """
 
     def __init__(self, data_path, target):
@@ -30,7 +29,7 @@ class AmesHousingPrediction:
         self.categorical_cols = None
         self.scaler = None
         self.encoder = None
-        self.model = RandomForestRegressor(n_estimators=100, random_state=42)
+        self.model = RandomForestRegressor(n_estimators=100, random_state=42)  # Increased n_estimators
 
     def load_data(self):
         """
@@ -39,6 +38,45 @@ class AmesHousingPrediction:
         df = pd.read_csv(self.data_path)
         df = df[self.selected_features + [self.target]]
         return df
+
+    def explore_data(self, df):
+        """
+        Perform exploratory data analysis on the dataset with basic visualizations.
+        """
+        print("\nDataset Info:")
+        print(df.info())
+        print("\nSummary Statistics:")
+        print(df.describe())
+        print("\nMissing Values Count:")
+        print(df.isnull().sum())
+
+        # Visualizing missing data (only missing features)
+        missing_data = df.isnull().sum()
+        missing_data = missing_data[missing_data > 0]
+        if not missing_data.empty:
+            print(f"\nMissing data:\n{missing_data}")
+            # Bar plot for missing values
+            plt.figure(figsize=(10, 6))
+            missing_data.plot(kind='bar', color='orange')
+            plt.title("Missing Values in Features")
+            plt.xlabel("Features")
+            plt.ylabel("Count of Missing Values")
+            plt.show()
+
+    def feature_engineering(self, df):
+        """
+        Perform correlation analysis (basic) and log it.
+        """
+        corr_matrix = df.select_dtypes(include=['int64', 'float64']).corr()
+        print("\nCorrelation Matrix with Target Variable (SalePrice):")
+        if self.target in corr_matrix:
+            print(corr_matrix[self.target].sort_values(ascending=False))
+
+        # Visualize correlation heatmap
+        plt.figure(figsize=(10, 6))
+        sns.heatmap(corr_matrix, annot=True, fmt=".2f", cmap="coolwarm")
+        plt.title("Correlation Heatmap with SalePrice")
+        plt.show()
 
     def preprocess(self, df):
         """
@@ -69,15 +107,6 @@ class AmesHousingPrediction:
 
         return X_preprocessed, y
 
-    def preprocess_new_data(self, X):
-        """
-        Preprocess new data for prediction (scaling and encoding).
-        """
-        X_numeric = self.scaler.transform(X[self.numeric_cols])
-        X_categorical = self.encoder.transform(X[self.categorical_cols])
-        X_preprocessed = np.hstack([X_numeric, X_categorical])
-        return X_preprocessed
-
     def train_and_evaluate(self, X, y):
         """
         Train the model and evaluate its performance on a test set.
@@ -95,21 +124,17 @@ class AmesHousingPrediction:
         mae = mean_absolute_error(y_test, y_pred)
         rmse = np.sqrt(mean_squared_error(y_test, y_pred))
 
-        # Custom accuracy: predictions within 10% of actual values
+        # Calculate custom accuracy (within 10% of actual sale price)
         tolerance = 0.10
         relative_errors = np.abs((y_pred - y_test) / y_test)
         accurate_predictions = np.sum(relative_errors < tolerance)
-        custom_accuracy = (accurate_predictions / len(y_test))*100
+        custom_accuracy = (accurate_predictions / len(y_test)) * 100
 
-        print("\nModel Performance:")
-        print(f"Custom Accuracy (within 10% of actual price): {custom_accuracy:.2f}")
-
-    def predict(self, X):
-        """
-        Predict the target variable for new data.
-        """
-        X_preprocessed = self.preprocess_new_data(X)
-        return self.model.predict(X_preprocessed)
+        # Display performance metrics (basic output)
+        print("\nPreliminary Model Performance:")
+        print(f"Custom Accuracy (within 10% of actual price): {custom_accuracy:.2f}%")
+        print(f"MAE: {mae:.2f}")
+        print(f"RMSE: {rmse:.2f}")
 
     def run_experiment(self):
         """
@@ -117,6 +142,12 @@ class AmesHousingPrediction:
         """
         print("Loading data...")
         df = self.load_data()
+
+        print("Exploring data...")
+        self.explore_data(df)
+
+        print("Feature engineering...")
+        self.feature_engineering(df)
 
         print("Preprocessing data...")
         X, y = self.preprocess(df)
