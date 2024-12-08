@@ -10,32 +10,29 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error
 
 class AmesHousingPrediction:
     """
-    A class to encapsulate the process of predicting Ames Housing prices 
-
-    with a preliminary implementation for Milestone 2.
+    Predicting Ames Housing prices 
     """
 
-    def __init__(self, data_path, target):
+    def __init__(self, data_path, target, random_seed=42):
         """
-        Initialize the class with dataset path and target variable.
+        Initialize the class 
         """
         self.data_path = data_path
         self.target = target
+        self.random_seed = random_seed
+        np.random.seed(self.random_seed)  # Set seed for reproducibility
         self.selected_features = [
             'Overall Qual', 'Gr Liv Area', 'Neighborhood',
             'Year Built', 'Garage Area', 'Full Bath',
-            'Bedroom AbvGr', 'TotRms AbvGrd'
+            'Bedroom AbvGr', 'TotRms AbvGrd', 'Lot Frontage', 'Lot Area', 'Street'
         ]
         self.numeric_cols = None
         self.categorical_cols = None
         self.scaler = None
         self.encoder = None
-        self.model = RandomForestRegressor(n_estimators=100, random_state=42)  # Increased n_estimators
+        self.model = RandomForestRegressor( n_estimators=200, random_state=self.random_seed)  
 
     def load_data(self):
-        """
-        Load the dataset and filter for selected features.
-        """
         df = pd.read_csv(self.data_path)
         df = df[self.selected_features + [self.target]]
         return df
@@ -81,13 +78,13 @@ class AmesHousingPrediction:
 
     def preprocess(self, df):
         """
-        Preprocess the dataset by handling missing values, scaling, and encoding.
+        Preprocess the dataset by handling missing values, scaling & encoding.
         """
         # Separate the target
         X = df.drop(columns=[self.target])
         y = df[self.target]
 
-        # Determine numeric and categorical columns AFTER dropping the target
+        # Determine numeric and categorical columns post dropping the columns
         self.numeric_cols = X.select_dtypes(include=['int64', 'float64']).columns
         self.categorical_cols = X.select_dtypes(include=['object']).columns
 
@@ -95,15 +92,15 @@ class AmesHousingPrediction:
         X[self.numeric_cols] = X[self.numeric_cols].fillna(X[self.numeric_cols].median())
         X[self.categorical_cols] = X[self.categorical_cols].fillna('Unknown')
 
-        # Scale numeric features
+        # Scale  features
         self.scaler = StandardScaler()
         X_numeric = self.scaler.fit_transform(X[self.numeric_cols])
 
-        # Encode categorical features (using sparse_output=False for a dense array)
+        # Encode categorical features 
         self.encoder = OneHotEncoder(handle_unknown='ignore', sparse_output=False)
         X_categorical = self.encoder.fit_transform(X[self.categorical_cols])
 
-        # Combine numeric and categorical features
+        # combine numeric and categorical features
         X_preprocessed = np.hstack([X_numeric, X_categorical])
 
         return X_preprocessed, y
@@ -113,7 +110,7 @@ class AmesHousingPrediction:
         Perform cross-validation to evaluate the model's performance.
         """
         # Define the cross-validation strategy
-        kfold = KFold(n_splits=cv_folds, shuffle=True, random_state=42)
+        kfold = KFold(n_splits=cv_folds, shuffle=True, random_state=self.random_seed)
         
         # Evaluate the model using cross-validation
         scores = cross_val_score(self.model, X, y, cv=kfold, scoring='neg_mean_absolute_error')
@@ -136,7 +133,9 @@ class AmesHousingPrediction:
         Train the model and evaluate its performance on a test set.
         """
         # Split into training and testing datasets
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=self.random_seed
+        )
 
         # Train the model
         self.model.fit(X_train, y_train)
@@ -154,7 +153,7 @@ class AmesHousingPrediction:
         accurate_predictions = np.sum(relative_errors < tolerance)
         custom_accuracy = (accurate_predictions / len(y_test)) * 100
 
-        # Display performance metrics (basic output)
+        # Print output
         print("\nPreliminary Model Performance:")
         print(f"Custom Accuracy (within 10% of actual price): {custom_accuracy:.2f}%")
         print(f"MAE: {mae:.2f}")
@@ -182,10 +181,9 @@ class AmesHousingPrediction:
         self.cross_validate_model(X, y, cv_folds=cv_folds)
 
 
-
 if __name__ == "__main__":
     # Define the path to the dataset and the target variable
-    DATA_PATH = 'AmesHousing.csv'  # Update with your actual file path
+    DATA_PATH = 'AmesHousing.csv' 
     TARGET = 'SalePrice'
 
     # Initialize and run the experiment
