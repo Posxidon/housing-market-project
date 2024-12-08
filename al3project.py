@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, cross_val_score, KFold
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error
@@ -11,6 +11,7 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error
 class AmesHousingPrediction:
     """
     A class to encapsulate the process of predicting Ames Housing prices 
+
     with a preliminary implementation for Milestone 2.
     """
 
@@ -107,6 +108,29 @@ class AmesHousingPrediction:
 
         return X_preprocessed, y
 
+    def cross_validate_model(self, X, y, cv_folds=5):
+        """
+        Perform cross-validation to evaluate the model's performance.
+        """
+        # Define the cross-validation strategy
+        kfold = KFold(n_splits=cv_folds, shuffle=True, random_state=42)
+        
+        # Evaluate the model using cross-validation
+        scores = cross_val_score(self.model, X, y, cv=kfold, scoring='neg_mean_absolute_error')
+        
+        # Convert negative MAE to positive for readability
+        mae_scores = -scores
+        
+        # Calculate average and standard deviation of MAE
+        mean_mae = np.mean(mae_scores)
+        std_mae = np.std(mae_scores)
+        
+        # Display cross-validation results
+        print(f"\nCross-Validation Results (using {cv_folds}-fold):")
+        print(f"Mean MAE: {mean_mae:.2f}")
+        print(f"Standard Deviation of MAE: {std_mae:.2f}")
+        print(f"Individual MAE scores: {mae_scores}")
+
     def train_and_evaluate(self, X, y):
         """
         Train the model and evaluate its performance on a test set.
@@ -136,7 +160,7 @@ class AmesHousingPrediction:
         print(f"MAE: {mae:.2f}")
         print(f"RMSE: {rmse:.2f}")
 
-    def run_experiment(self):
+    def run_experiment(self, cv_folds=5):
         """
         Execute the workflow from loading data to evaluation.
         """
@@ -154,6 +178,9 @@ class AmesHousingPrediction:
 
         print("Training and evaluating the model...")
         self.train_and_evaluate(X, y)
+
+        self.cross_validate_model(X, y, cv_folds=cv_folds)
+
 
 
 if __name__ == "__main__":
