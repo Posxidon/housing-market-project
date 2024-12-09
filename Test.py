@@ -1,44 +1,67 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
+from sklearn.metrics import mean_absolute_error, mean_squared_error
 from Model import load_model
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
 
-class TestAmesHousing:
-    def __init__(self, model_path, data_path, target):
-        self.model_path = model_path
-        self.data_path = data_path
-        self.target = target
-        self.model = load_model(self.model_path)
+class AmesHousingTesting:
+    def __init__(self, model_path):
+        """
+        Initialize with the path to the trained model.
+        """
+        self.model = load_model(model_path)
 
-    def preprocess(self, df):
-        X = df.drop(columns=[self.target])
-        numeric_cols = X.select_dtypes(include=['int64', 'float64']).columns
-        categorical_cols = X.select_dtypes(include=['object']).columns
+    def load_features(self):
+        """
+        Load test features, labels, and feature names saved during training.
+        """
+        X_test = np.load('test_features.npy', allow_pickle=True)
+        y_test = np.load('test_labels.npy', allow_pickle=True)
+        feature_names = np.load('feature_names.npy', allow_pickle=True)
+        return X_test, y_test, feature_names
 
-        X[numeric_cols] = X[numeric_cols].fillna(X[numeric_cols].median())
-        X[categorical_cols] = X[categorical_cols].fillna('Unknown')
-
-        scaler = StandardScaler()
-        X_numeric = scaler.fit_transform(X[numeric_cols])
-
-        encoder = OneHotEncoder(handle_unknown='ignore', sparse_output=False)
-        X_categorical = encoder.fit_transform(X[categorical_cols])
-
-        X_preprocessed = np.hstack([X_numeric, X_categorical])
-        return X_preprocessed
-
-    def predict(self):
-        df = pd.read_csv(self.data_path)
-        X = self.preprocess(df)
-        predictions = self.model.predict(X)
+    def predict(self, X_test, feature_names):
+        """
+        Perform predictions using the loaded model.
+        """
+        # Convert NumPy array back to DataFrame with feature names
+        X_test_df = pd.DataFrame(X_test, columns=feature_names)
+        predictions = self.model.predict(X_test_df)
         return predictions
 
+    def evaluate(self, y_test, y_pred):
+        """
+        Evaluate the model performance using MAE, RMSE, and accuracy.
+        """
+        mae = mean_absolute_error(y_test, y_pred)
+        rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+
+        # Calculate custom accuracy (within 10% of the actual sale price)
+        tolerance = 0.10
+        relative_errors = np.abs((y_pred - y_test) / y_test)
+        accurate_predictions = np.sum(relative_errors < tolerance)
+        custom_accuracy = (accurate_predictions / len(y_test)) * 100
+
+        return mae, rmse, custom_accuracy
+
 if __name__ == "__main__":
-    TEST_DATA_PATH = 'AmesHousing_test.csv'
     MODEL_PATH = 'trained_model.pkl'
-    TARGET = 'SalePrice'
 
-    tester = TestAmesHousing(MODEL_PATH, TEST_DATA_PATH, TARGET)
-    predictions = tester.predict()
+    # Initialize tester
+    tester = AmesHousingTesting(MODEL_PATH)
 
-    print(f"Predictions: {predictions[:5]}")
+    # Load test features, labels, and feature names
+    X_test, y_test, feature_names = tester.load_features()
+
+    # Make predictions
+    predictions = tester.predict(X_test, feature_names)
+
+    # Evaluate predictions
+    mae, rmse, accuracy = tester.evaluate(y_test, predictions)
+
+    # Print evaluation metrics
+    print("\nModel Evaluation on Test Data:")
+    print(f"MAE: {mae:.2f}")
+    print(f"RMSE: {rmse:.2f}")
+    print(f"Accuracy (within 10% tolerance): {accuracy:.2f}%")
+
+

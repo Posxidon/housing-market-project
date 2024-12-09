@@ -1,6 +1,6 @@
 import pickle
 
-def save_model(model, file_path="trained_model_al3_group51.pkl"):
+def save_model(model, file_path="trained_model_al3_group35.pkl"):
     """
     Save the trained model to a pickle file.
 
@@ -19,7 +19,7 @@ def save_model(model, file_path="trained_model_al3_group51.pkl"):
         print(f"Failed to save model: {e}")
 
 
-def load_model(file_path="trained_model_al3_group51.pkl"):
+def load_model(file_path="trained_model_al3_group35.pkl"):
     """
     Load a trained model from a pickle file.
 
