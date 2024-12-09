@@ -16,7 +16,7 @@ class AmesHousingTraining:
         self.selected_features = [
             'Overall Qual', 'Gr Liv Area', 'Neighborhood',
             'Year Built', 'Garage Area', 'Full Bath',
-            'Bedroom AbvGr', 'TotRms AbvGrd', 'Lot Frontage', 'Lot Area', 'Street'
+            'TotRms AbvGrd', 'Lot Frontage', 'Lot Area', 'Street'
         ]
         self.model = RandomForestRegressor(n_estimators=200, random_state=self.random_seed)
 
@@ -71,7 +71,6 @@ class AmesHousingTraining:
         X_preprocessed = pd.get_dummies(X, columns=categorical_cols, drop_first=True)
         return X_preprocessed, y
 
-
     def train_and_evaluate(self, X_train, X_test, y_train, y_test, feature_names):
         """
         Train the model and evaluate on the test set.
@@ -92,7 +91,6 @@ class AmesHousingTraining:
         plt.ylabel("Frequency")
         plt.show()
 
-        # Display feature importance
         self.display_feature_importance(feature_names)
 
     def display_feature_importance(self, feature_names):
@@ -103,7 +101,6 @@ class AmesHousingTraining:
         feature_importance = pd.DataFrame({'Feature': feature_names, 'Importance': importances})
         feature_importance = feature_importance.sort_values(by='Importance', ascending=False)
 
-        # Plot the top 10 features with a color palette
         plt.figure(figsize=(10, 6))
         sns.barplot(x='Importance', y='Feature', data=feature_importance.head(10), palette='viridis', hue='Feature', legend=False)
         plt.title("Top 10 Feature Importances")
@@ -111,7 +108,6 @@ class AmesHousingTraining:
         plt.ylabel("Features")
         plt.show()
 
-    
     def save_split_data(self, X_train, X_test, y_train, y_test):
         """
         Save the train-test split and feature names as .npy files for consistency.
@@ -124,8 +120,16 @@ class AmesHousingTraining:
         # Save feature names
         feature_names = X_train.columns
         np.save('feature_names.npy', feature_names, allow_pickle=True)
-
         print("Train-test split and feature names saved as .npy files.")
+
+    def load_split_data(self):
+        X_train = np.load('train_features.npy', allow_pickle=True)
+        X_test = np.load('test_features.npy', allow_pickle=True)
+        y_train = np.load('train_labels.npy', allow_pickle=True)
+        y_test = np.load('test_labels.npy', allow_pickle=True)
+        feature_names = np.load('feature_names.npy', allow_pickle=True)
+        print("Train-test split and feature names loaded from .npy files.")
+        return X_train, X_test, y_train, y_test, feature_names
 
     def run(self):
         """
@@ -141,7 +145,6 @@ class AmesHousingTraining:
         # Preprocess data
         X, y = self.preprocess(df)
 
-        # Train-test split
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=0.2, random_state=self.random_seed
         )
@@ -160,5 +163,4 @@ if __name__ == "__main__":
 
     trainer = AmesHousingTraining(DATA_PATH, TARGET)
     trainer.run()
-
     save_model(trainer.model, MODEL_PATH)
