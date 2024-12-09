@@ -12,7 +12,6 @@ class AmesHousingPrediction:
     """
     Predicting Ames Housing prices 
     """
-
     def __init__(self, data_path, target, random_seed=42):
         """
         Initialize the class 
@@ -30,7 +29,7 @@ class AmesHousingPrediction:
         self.categorical_cols = None
         self.scaler = None
         self.encoder = None
-        self.model = RandomForestRegressor( n_estimators=200, random_state=self.random_seed)  
+        self.model = RandomForestRegressor(n_estimators=200, random_state=self.random_seed)  
 
     def load_data(self):
         df = pd.read_csv(self.data_path)
@@ -52,14 +51,8 @@ class AmesHousingPrediction:
         missing_data = df.isnull().sum()
         missing_data = missing_data[missing_data > 0]
         if not missing_data.empty:
-            print(f"\nMissing data:\n{missing_data}")
-            # Bar plot for missing values
-            plt.figure(figsize=(10, 6))
-            missing_data.plot(kind='bar', color='orange')
-            plt.title("Missing Values in Features")
-            plt.xlabel("Features")
-            plt.ylabel("Count of Missing Values")
-            plt.show()
+            print(f"\nMissing data summary:\n{missing_data}")
+            print("\nMissing values have been imputed during preprocessing.")
 
     def feature_engineering(self, df):
         """
@@ -74,6 +67,14 @@ class AmesHousingPrediction:
         plt.figure(figsize=(10, 6))
         sns.heatmap(corr_matrix, annot=True, fmt=".2f", cmap="coolwarm")
         plt.title("Correlation Heatmap with SalePrice")
+        plt.show()
+
+        # Visualize target distribution
+        plt.figure(figsize=(8, 6))
+        sns.histplot(df[self.target], kde=True, color='blue', bins=30)
+        plt.title("Distribution of SalePrice")
+        plt.xlabel("SalePrice")
+        plt.ylabel("Frequency")
         plt.show()
 
     def preprocess(self, df):
@@ -104,6 +105,45 @@ class AmesHousingPrediction:
         X_preprocessed = np.hstack([X_numeric, X_categorical])
 
         return X_preprocessed, y
+
+    def display_feature_importance(self):
+        """
+        Display feature importance from the Random Forest model.
+        """
+        importances = self.model.feature_importances_
+        feature_names = list(self.numeric_cols) + list(self.encoder.get_feature_names_out(self.categorical_cols))
+        
+        # Combine and sort by importance
+        feature_importance = pd.DataFrame({'Feature': feature_names, 'Importance': importances})
+        feature_importance = feature_importance.sort_values(by='Importance', ascending=False)
+        
+        # Plot the top 10 features
+        plt.figure(figsize=(10, 6))
+        # Updated barplot call to address the deprecation warning
+        ax = sns.barplot(
+            x='Importance',
+            y='Feature',
+            data=feature_importance.head(10),
+            hue='Feature',  # Add hue parameter
+            legend=False    # Disable legend since we don't need it
+        )
+        plt.title("Top 10 Feature Importances")
+        plt.xlabel("Feature Importance")
+        plt.ylabel("Features")
+        plt.show()
+
+
+    def display_residuals(self, y_test, y_pred):
+        """
+        Plot residuals (actual - predicted values).
+        """
+        residuals = y_test - y_pred
+        plt.figure(figsize=(8, 6))
+        sns.histplot(residuals, kde=True, color='red', bins=30)
+        plt.title("Residuals Distribution")
+        plt.xlabel("Residuals")
+        plt.ylabel("Frequency")
+        plt.show()
 
     def cross_validate_model(self, X, y, cv_folds=5):
         """
@@ -159,6 +199,9 @@ class AmesHousingPrediction:
         print(f"MAE: {mae:.2f}")
         print(f"RMSE: {rmse:.2f}")
 
+        # Display residuals
+        self.display_residuals(y_test, y_pred)
+
     def run_experiment(self, cv_folds=5):
         """
         Execute the workflow from loading data to evaluation.
@@ -179,6 +222,7 @@ class AmesHousingPrediction:
         self.train_and_evaluate(X, y)
 
         self.cross_validate_model(X, y, cv_folds=cv_folds)
+        self.display_feature_importance()
 
 
 if __name__ == "__main__":
@@ -189,3 +233,4 @@ if __name__ == "__main__":
     # Initialize and run the experiment
     ames_housing = AmesHousingPrediction(DATA_PATH, TARGET)
     ames_housing.run_experiment()
+
