@@ -25,35 +25,6 @@ class AmesHousingTraining:
         df = df[self.selected_features + [self.target]]
         return df
 
-    def explore_data(self, df):
-        """
-        Perform exploratory data analysis on the dataset.
-        """
-        print("\nDataset Info:")
-        print(df.info())
-        print("\nSummary Statistics:")
-        print(df.describe())
-        print("\nMissing Values Count:")
-        print(df.isnull().sum())
-
-        # Missing data visualization
-        missing_data = df.isnull().sum()
-        missing_data = missing_data[missing_data > 0]
-        if not missing_data.empty:
-            plt.figure(figsize=(8, 6))
-            missing_data.plot(kind='bar', color='orange')
-            plt.title("Missing Values in Features")
-            plt.ylabel("Count of Missing Values")
-            plt.show()
-
-        # Target distribution visualization
-        plt.figure(figsize=(8, 6))
-        sns.histplot(df[self.target], kde=True, color='blue', bins=30)
-        plt.title(f"Distribution of {self.target}")
-        plt.xlabel(self.target)
-        plt.ylabel("Frequency")
-        plt.show()
-
     def feature_engineering(self, df):
         """
         Perform feature correlation analysis and visualization.
@@ -66,6 +37,25 @@ class AmesHousingTraining:
         plt.figure(figsize=(10, 6))
         sns.heatmap(corr_matrix, annot=True, fmt=".2f", cmap="coolwarm")
         plt.title("Correlation Heatmap with Target Variable")
+        plt.show()
+
+    def explore_data(self, df):
+        """
+        Perform exploratory data analysis on the dataset.
+        """
+        print("\nDataset Info:")
+        print(df.info())
+        print("\nSummary Statistics:")
+        print(df.describe())
+        print("\nMissing Values Count:")
+        print(df.isnull().sum())
+
+        # SalePrice distribution visualization
+        plt.figure(figsize=(8, 6))
+        sns.histplot(df[self.target], kde=True, color='blue', bins=30)
+        plt.title(f"Distribution of {self.target}")
+        plt.xlabel(self.target)
+        plt.ylabel("Frequency")
         plt.show()
 
     def preprocess(self, df):
@@ -81,6 +71,47 @@ class AmesHousingTraining:
         X_preprocessed = pd.get_dummies(X, columns=categorical_cols, drop_first=True)
         return X_preprocessed, y
 
+
+    def train_and_evaluate(self, X_train, X_test, y_train, y_test, feature_names):
+        """
+        Train the model and evaluate on the test set.
+        """
+        self.model.fit(X_train, y_train)
+        y_pred = self.model.predict(X_test)
+
+        mae = mean_absolute_error(y_test, y_pred)
+        rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+        print(f"MAE: {mae:.2f}, RMSE: {rmse:.2f}")
+
+        # Residual plot visualization
+        residuals = y_test - y_pred
+        plt.figure(figsize=(8, 6))
+        sns.histplot(residuals, kde=True, color='red', bins=30)
+        plt.title("Residual Distribution")
+        plt.xlabel("Residuals")
+        plt.ylabel("Frequency")
+        plt.show()
+
+        # Display feature importance
+        self.display_feature_importance(feature_names)
+
+    def display_feature_importance(self, feature_names):
+        """
+        Visualize feature importances from the trained model.
+        """
+        importances = self.model.feature_importances_
+        feature_importance = pd.DataFrame({'Feature': feature_names, 'Importance': importances})
+        feature_importance = feature_importance.sort_values(by='Importance', ascending=False)
+
+        # Plot the top 10 features with a color palette
+        plt.figure(figsize=(10, 6))
+        sns.barplot(x='Importance', y='Feature', data=feature_importance.head(10), palette='viridis', hue='Feature', legend=False)
+        plt.title("Top 10 Feature Importances")
+        plt.xlabel("Feature Importance")
+        plt.ylabel("Features")
+        plt.show()
+
+    
     def save_split_data(self, X_train, X_test, y_train, y_test):
         """
         Save the train-test split and feature names as .npy files for consistency.
@@ -96,47 +127,16 @@ class AmesHousingTraining:
 
         print("Train-test split and feature names saved as .npy files.")
 
-    def display_feature_importance(self, feature_names):
-        """
-        Visualize feature importances from the trained model.
-        """
-        importances = self.model.feature_importances_
-        feature_importance = pd.DataFrame({'Feature': feature_names, 'Importance': importances})
-        feature_importance = feature_importance.sort_values(by='Importance', ascending=False)
-
-        # Plot the top 10 features
-        plt.figure(figsize=(10, 6))
-        sns.barplot(x='Importance', y='Feature', data=feature_importance.head(10))
-        plt.title("Top 10 Feature Importances")
-        plt.xlabel("Feature Importance")
-        plt.ylabel("Features")
-        plt.show()
-
-    def train_and_evaluate(self, X_train, X_test, y_train, y_test, feature_names):
-        """
-        Train the model and evaluate on the test set.
-        """
-        self.model.fit(X_train, y_train)
-        y_pred = self.model.predict(X_test)
-
-        mae = mean_absolute_error(y_test, y_pred)
-        rmse = np.sqrt(mean_squared_error(y_test, y_pred))
-        print(f"MAE: {mae:.2f}, RMSE: {rmse:.2f}")
-
-        # Display feature importance
-        self.display_feature_importance(feature_names)
-
     def run(self):
         """
         Main method to run the training pipeline.
         """
         df = self.load_data()
+        # Feature correlation analysis
+        self.feature_engineering(df)
 
         # Perform exploratory data analysis
         self.explore_data(df)
-
-        # Feature correlation analysis
-        self.feature_engineering(df)
 
         # Preprocess data
         X, y = self.preprocess(df)
@@ -146,12 +146,12 @@ class AmesHousingTraining:
             X, y, test_size=0.2, random_state=self.random_seed
         )
 
-        # Save split data
-        self.save_split_data(X_train, X_test, y_train, y_test)
-
         # Train and evaluate the model
         feature_names = list(X.columns)
         self.train_and_evaluate(X_train, X_test, y_train, y_test, feature_names)
+
+        # Save split data
+        self.save_split_data(X_train, X_test, y_train, y_test)
 
 if __name__ == "__main__":
     DATA_PATH = 'AmesHousing.csv'
