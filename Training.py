@@ -2,16 +2,12 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.model_selection import train_test_split, cross_val_score, KFold
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 from Model import save_model
 
-class AmesHousingPrediction:
-    """
-    Predicting Ames Housing prices 
-    """
+class AmesHousingTraining:
     def __init__(self, data_path, target, random_seed=42):
         self.data_path = data_path
         self.target = target
@@ -22,10 +18,6 @@ class AmesHousingPrediction:
             'Year Built', 'Garage Area', 'Full Bath',
             'Bedroom AbvGr', 'TotRms AbvGrd', 'Lot Frontage', 'Lot Area', 'Street'
         ]
-        self.numeric_cols = None
-        self.categorical_cols = None
-        self.scaler = None
-        self.encoder = None
         self.model = RandomForestRegressor(n_estimators=200, random_state=self.random_seed)
 
     def load_data(self):
@@ -34,6 +26,9 @@ class AmesHousingPrediction:
         return df
 
     def explore_data(self, df):
+        """
+        Perform exploratory data analysis on the dataset.
+        """
         print("\nDataset Info:")
         print(df.info())
         print("\nSummary Statistics:")
@@ -41,54 +36,75 @@ class AmesHousingPrediction:
         print("\nMissing Values Count:")
         print(df.isnull().sum())
 
-        # Visualizing missing data
+        # Missing data visualization
         missing_data = df.isnull().sum()
         missing_data = missing_data[missing_data > 0]
         if not missing_data.empty:
-            print(f"\nMissing data summary:\n{missing_data}")
+            plt.figure(figsize=(8, 6))
+            missing_data.plot(kind='bar', color='orange')
+            plt.title("Missing Values in Features")
+            plt.ylabel("Count of Missing Values")
+            plt.show()
 
-    def feature_engineering(self, df):
-        corr_matrix = df.select_dtypes(include=['int64', 'float64']).corr()
-        print("\nCorrelation Matrix with Target Variable (SalePrice):")
-        if self.target in corr_matrix:
-            print(corr_matrix[self.target].sort_values(ascending=False))
-
-        plt.figure(figsize=(10, 6))
-        sns.heatmap(corr_matrix, annot=True, fmt=".2f", cmap="coolwarm")
-        plt.title("Correlation Heatmap with SalePrice")
-        plt.show()
-
+        # Target distribution visualization
         plt.figure(figsize=(8, 6))
         sns.histplot(df[self.target], kde=True, color='blue', bins=30)
-        plt.title("Distribution of SalePrice")
-        plt.xlabel("SalePrice")
+        plt.title(f"Distribution of {self.target}")
+        plt.xlabel(self.target)
         plt.ylabel("Frequency")
+        plt.show()
+
+    def feature_engineering(self, df):
+        """
+        Perform feature correlation analysis and visualization.
+        """
+        corr_matrix = df.select_dtypes(include=['int64', 'float64']).corr()
+        print("\nCorrelation Matrix with Target Variable:")
+        print(corr_matrix[self.target].sort_values(ascending=False))
+
+        # Heatmap visualization
+        plt.figure(figsize=(10, 6))
+        sns.heatmap(corr_matrix, annot=True, fmt=".2f", cmap="coolwarm")
+        plt.title("Correlation Heatmap with Target Variable")
         plt.show()
 
     def preprocess(self, df):
         X = df.drop(columns=[self.target])
         y = df[self.target]
 
-        self.numeric_cols = X.select_dtypes(include=['int64', 'float64']).columns
-        self.categorical_cols = X.select_dtypes(include=['object']).columns
+        numeric_cols = X.select_dtypes(include=['int64', 'float64']).columns
+        categorical_cols = X.select_dtypes(include=['object']).columns
 
-        X[self.numeric_cols] = X[self.numeric_cols].fillna(X[self.numeric_cols].median())
-        X[self.categorical_cols] = X[self.categorical_cols].fillna('Unknown')
+        X[numeric_cols] = X[numeric_cols].fillna(X[numeric_cols].median())
+        X[categorical_cols] = X[categorical_cols].fillna('Unknown')
 
-        self.scaler = StandardScaler()
-        X_numeric = self.scaler.fit_transform(X[self.numeric_cols])
-
-        self.encoder = OneHotEncoder(handle_unknown='ignore', sparse_output=False)
-        X_categorical = self.encoder.fit_transform(X[self.categorical_cols])
-
-        X_preprocessed = np.hstack([X_numeric, X_categorical])
+        X_preprocessed = pd.get_dummies(X, columns=categorical_cols, drop_first=True)
         return X_preprocessed, y
 
-    def display_feature_importance(self):
-        importances = self.model.feature_importances_
-        feature_names = list(self.numeric_cols) + list(self.encoder.get_feature_names_out(self.categorical_cols))
-        feature_importance = pd.DataFrame({'Feature': feature_names, 'Importance': importances}).sort_values(by='Importance', ascending=False)
+    def save_split_data(self, X_train, X_test, y_train, y_test):
+        """
+        Save the train-test split and feature names as .npy files for consistency.
+        """
+        np.save('train_features.npy', X_train, allow_pickle=True)
+        np.save('test_features.npy', X_test, allow_pickle=True)
+        np.save('train_labels.npy', y_train, allow_pickle=True)
+        np.save('test_labels.npy', y_test, allow_pickle=True)
 
+        # Save feature names
+        feature_names = X_train.columns
+        np.save('feature_names.npy', feature_names, allow_pickle=True)
+
+        print("Train-test split and feature names saved as .npy files.")
+
+    def display_feature_importance(self, feature_names):
+        """
+        Visualize feature importances from the trained model.
+        """
+        importances = self.model.feature_importances_
+        feature_importance = pd.DataFrame({'Feature': feature_names, 'Importance': importances})
+        feature_importance = feature_importance.sort_values(by='Importance', ascending=False)
+
+        # Plot the top 10 features
         plt.figure(figsize=(10, 6))
         sns.barplot(x='Importance', y='Feature', data=feature_importance.head(10))
         plt.title("Top 10 Feature Importances")
@@ -96,8 +112,10 @@ class AmesHousingPrediction:
         plt.ylabel("Features")
         plt.show()
 
-    def train_and_evaluate(self, X, y):
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=self.random_seed)
+    def train_and_evaluate(self, X_train, X_test, y_train, y_test, feature_names):
+        """
+        Train the model and evaluate on the test set.
+        """
         self.model.fit(X_train, y_train)
         y_pred = self.model.predict(X_test)
 
@@ -105,19 +123,42 @@ class AmesHousingPrediction:
         rmse = np.sqrt(mean_squared_error(y_test, y_pred))
         print(f"MAE: {mae:.2f}, RMSE: {rmse:.2f}")
 
-    def run_experiment(self):
+        # Display feature importance
+        self.display_feature_importance(feature_names)
+
+    def run(self):
+        """
+        Main method to run the training pipeline.
+        """
         df = self.load_data()
+
+        # Perform exploratory data analysis
         self.explore_data(df)
+
+        # Feature correlation analysis
         self.feature_engineering(df)
+
+        # Preprocess data
         X, y = self.preprocess(df)
-        self.train_and_evaluate(X, y)
-        self.display_feature_importance()
+
+        # Train-test split
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=self.random_seed
+        )
+
+        # Save split data
+        self.save_split_data(X_train, X_test, y_train, y_test)
+
+        # Train and evaluate the model
+        feature_names = list(X.columns)
+        self.train_and_evaluate(X_train, X_test, y_train, y_test, feature_names)
 
 if __name__ == "__main__":
     DATA_PATH = 'AmesHousing.csv'
     TARGET = 'SalePrice'
     MODEL_PATH = 'trained_model.pkl'
 
-    ames_housing = AmesHousingPrediction(DATA_PATH, TARGET)
-    ames_housing.run_experiment()
-    save_model(ames_housing.model, MODEL_PATH)
+    trainer = AmesHousingTraining(DATA_PATH, TARGET)
+    trainer.run()
+
+    save_model(trainer.model, MODEL_PATH)
