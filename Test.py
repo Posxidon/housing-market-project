@@ -19,13 +19,22 @@ class AmesHousingTesting:
         feature_names = np.load('feature_names.npy', allow_pickle=True)
         return X_test, y_test, feature_names
 
+    def align_features(self, X_test, feature_names):
+
+        X_test_df = pd.DataFrame(X_test, columns=feature_names[:X_test.shape[1]])
+        for col in feature_names:
+            if col not in X_test_df.columns:
+                # add missing columns with 0
+                X_test_df[col] = 0  
+        X_test_df = X_test_df[feature_names] 
+        return X_test_df
+
     def predict(self, X_test, feature_names):
         """
         Perform predictions using the loaded model.
         """
-        # Convert NumPy array back to DataFrame with feature names
-        X_test_df = pd.DataFrame(X_test, columns=feature_names)
-        predictions = self.model.predict(X_test_df)
+        X_test_aligned = self.align_features(X_test, feature_names)
+        predictions = self.model.predict(X_test_aligned)
         return predictions
 
     def evaluate(self, y_test, y_pred):
@@ -52,7 +61,7 @@ if __name__ == "__main__":
     # Load test features, labels, and feature names
     X_test, y_test, feature_names = tester.load_features()
 
-    # Make predictions
+    # Align features and make predictions
     predictions = tester.predict(X_test, feature_names)
 
     # Evaluate predictions
@@ -63,5 +72,3 @@ if __name__ == "__main__":
     print(f"MAE: {mae:.2f}")
     print(f"RMSE: {rmse:.2f}")
     print(f"Accuracy (within 10% tolerance): {accuracy:.2f}%")
-
-
